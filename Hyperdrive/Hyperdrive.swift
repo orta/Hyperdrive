@@ -45,7 +45,7 @@ func absoluteRepresentor(baseURL:NSURL?)(original:Representor<HTTPTransition>) -
   }
 
   let representors = map(original.representors) { representors in
-    return map(representors, absoluteRepresentor(baseURL))
+    return representors.map(absoluteRepresentor(baseURL))
   }
 
   return Representor(transitions: transitions, representors: representors, attributes: original.attributes, metadata: original.metadata)
@@ -91,16 +91,9 @@ public class Hyperdrive {
 
   private let session:NSURLSession
 
-  /// An array of the supported content types in order of preference
-  let preferredContentTypes:[String]
-
-  /** Initialize hyperdrive
-  :param: preferredContentTypes An optional array of the supported content types in order of preference, when this is nil. All types supported by the Representor will be used.
-  */
-  public init(preferredContentTypes:[String]? = nil) {
+  public init() {
     let configuration = NSURLSessionConfiguration.defaultSessionConfiguration()
     session = NSURLSession(configuration: configuration)
-    self.preferredContentTypes = preferredContentTypes ?? HTTPDeserialization.preferredContentTypes
   }
 
   // MARK: -
@@ -118,7 +111,7 @@ public class Hyperdrive {
 
     if let URL = NSURL(string: expandedURI) {
       let request = NSMutableURLRequest(URL: URL)
-      request.setValue("; ".join(preferredContentTypes), forHTTPHeaderField: "Accept")
+      request.setValue("application/vnd.siren+json; application/hal+json", forHTTPHeaderField: "Accept")
       return .Success(request)
     }
 
@@ -140,7 +133,11 @@ public class Hyperdrive {
 
   func encodeAttributes(attributes:[String:AnyObject], suggestedContentTypes:[String]) -> NSData? {
     let JSONEncoder = { (attributes:[String:AnyObject]) -> NSData? in
-      return NSJSONSerialization.dataWithJSONObject(attributes, options: NSJSONWritingOptions(0), error: nil)
+        do {
+          return try NSJSONSerialization.dataWithJSONObject(attributes, options: NSJSONWritingOptions(rawValue: 0))
+        } catch _ {
+          return nil
+        }
     }
 
     let encoders:[String:([String:AnyObject] -> NSData?)] = [
